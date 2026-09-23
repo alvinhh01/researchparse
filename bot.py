@@ -13,8 +13,13 @@ channel        = os.getenv("TARGET_CHANNEL")
 session_string = os.getenv("SESSION_STRING")
 
 def get_compensation_amount(text):
-    match = re.search(r'(?:SGD|S\$|\$)\s*(\d+(?:\.\d+)?)', text, re.IGNORECASE)
-    return float(match.group(1)) if match else None
+    match = re.search(
+        r'(?:(?:SGD|S\$|\$)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:SGD|S\$|\$))',
+        text, re.IGNORECASE
+    )
+    if match:
+        return float(match.group(1) or match.group(2))
+    return None
 
 async def main():
     client = TelegramClient(StringSession(session_string), api_id, api_hash)
@@ -23,8 +28,16 @@ async def main():
     @client.on(events.NewMessage(chats=channel))
     async def handler(event):
         text = event.raw_text
-        has_sgd   = bool(re.search(r'(SGD|S\$|\$)\s*\d+', text, re.IGNORECASE))
-        is_online = bool(re.search(r'Duration:.*,\s*Online', text, re.IGNORECASE))
+
+        is_online = bool(re.search(
+            r'Duration:.*,\s*(?:online|survey|zoom|video|prescreen|call)',
+            text, re.IGNORECASE
+        ))
+
+        has_sgd = bool(re.search(
+            r'(\d+\s*(?:SGD|S\$|\$)|(?:SGD|S\$|\$)\s*\d+|NTUC|PayNow)',
+            text, re.IGNORECASE
+        ))
 
         if has_sgd and is_online:
             amount = get_compensation_amount(text)
