@@ -2,29 +2,32 @@ import re
 import asyncio
 import os
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 from dotenv import load_dotenv
 
-api_id   = int(os.getenv("TG_API_ID"))
-api_hash = os.getenv("TG_API_HASH")
-channel  = os.getenv("TARGET_CHANNEL")
+load_dotenv()
+
+api_id         = int(os.getenv("TG_API_ID"))
+api_hash       = os.getenv("TG_API_HASH")
+channel        = os.getenv("TARGET_CHANNEL")
+session_string = os.getenv("SESSION_STRING")
 
 async def main():
-    client = TelegramClient("session", api_id, api_hash)
-    await client.start()
-    
+    client = TelegramClient(StringSession(session_string), api_id, api_hash)
+    await client.connect()
+
     @client.on(events.NewMessage(chats=channel))
     async def handler(event):
         text = event.raw_text
-        has_sgd = bool(re.search(r'(SGD|\$)\s*\d+', text, re.IGNORECASE))
+        has_sgd   = bool(re.search(r'(SGD|\$)\s*\d+', text, re.IGNORECASE))
         is_online = "online survey" in text.lower()
         if has_sgd and is_online:
             await client.send_message("me", f"🔔 New paid survey!\n\n{text[:500]}")
-    
+
     print("Watching... Ctrl+C to stop.")
     await client.run_until_disconnected()
 
 asyncio.run(main())
-
 # --- Parsing ---
 
 NO_COMP = {"none", "nil", "no reward stated", "no reward", "n/a", ""}
