@@ -13,13 +13,11 @@ channel        = os.getenv("TARGET_CHANNEL")
 session_string = os.getenv("SESSION_STRING")
 
 def get_compensation_amount(text):
-    match = re.search(
-        r'(?:(?:SGD|S\$|\$)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:SGD|S\$|\$))',
-        text, re.IGNORECASE
-    )
-    if match:
-        return float(match.group(1) or match.group(2))
-    return None
+    comp_line = re.search(r'Compensation:(.+)', text, re.IGNORECASE)
+    if not comp_line:
+        return None
+    match = re.search(r'(\d+(?:\.\d+)?)', comp_line.group(1))
+    return float(match.group(1)) if match else None
 
 async def main():
     client = TelegramClient(StringSession(session_string), api_id, api_hash)
