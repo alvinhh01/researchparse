@@ -12,7 +12,7 @@ load_dotenv()
 api_id         = int(os.getenv("TG_API_ID"))
 api_hash       = os.getenv("TG_API_HASH")
 channel        = os.getenv("TARGET_CHANNEL")
-session_string = os.getenv("SESSION_STRING")
+session_string = os.getenv("SESSION_STRING", "").strip()
 
 def get_compensation_amount(text):
     comp_line = re.search(r'Compensation:(.+)', text, re.IGNORECASE)
@@ -22,7 +22,7 @@ def get_compensation_amount(text):
     return float(match.group(1)) if match else None
 
 async def main():
-    print(f"Session string length: {len(session_string)}")
+    print(f"Session length: {len(session_string)}")
     client = TelegramClient(StringSession(session_string), api_id, api_hash)
     try:
         await client.connect()
@@ -50,7 +50,7 @@ async def main():
         await client.run_until_disconnected()
 
     except AuthKeyUnregisteredError:
-        print("Session expired. Please regenerate SESSION_STRING and update Railway.")
+        print("Session expired.")
         sys.exit(1)
     finally:
         await client.disconnect()
