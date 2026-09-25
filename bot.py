@@ -50,8 +50,8 @@ async def main():
         await client.run_until_disconnected()
 
     except AuthKeyUnregisteredError:
-        print("Session expired.")
-        sys.exit(1)
+        print("Session expired. Regenerate SESSION_STRING.")
+        sys.exit(0)  # clean exit, Railway won't restart
     finally:
         await client.disconnect()
 
