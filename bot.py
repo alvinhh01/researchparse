@@ -22,6 +22,7 @@ def get_compensation_amount(text):
     return float(match.group(1)) if match else None
 
 async def main():
+    print(f"Session string length: {len(session_string)}")
     client = TelegramClient(StringSession(session_string), api_id, api_hash)
     try:
         await client.connect()
