@@ -1,8 +1,10 @@
 import re
 import asyncio
 import os
+import sys
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
+from telethon.errors import AuthKeyUnregisteredError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -21,30 +23,35 @@ def get_compensation_amount(text):
 
 async def main():
     client = TelegramClient(StringSession(session_string), api_id, api_hash)
-    await client.connect()
+    try:
+        await client.connect()
+        print("Connected successfully.")
 
-    @client.on(events.NewMessage(chats=channel))
-    async def handler(event):
-        text = event.raw_text
+        @client.on(events.NewMessage(chats=channel))
+        async def handler(event):
+            text = event.raw_text
+            is_online = bool(re.search(
+                r'Duration:.*,\s*(?:online|survey|zoom|video|prescreen|call)',
+                text, re.IGNORECASE
+            ))
+            has_sgd = bool(re.search(
+                r'(\d+\s*(?:SGD|S\$|\$)|(?:SGD|S\$|\$)\s*\d+|NTUC|PayNow)',
+                text, re.IGNORECASE
+            ))
+            if has_sgd and is_online:
+                amount = get_compensation_amount(text)
+                if amount and amount >= 100:
+                    await client.send_message("me", f"🚨 HIGH PAY ALERT (SGD {amount:.0f}+)!\n\n{text}")
+                else:
+                    await client.send_message("me", f"🔔 New paid survey!\n\n{text}")
 
-        is_online = bool(re.search(
-            r'Duration:.*,\s*(?:online|survey|zoom|video|prescreen|call)',
-            text, re.IGNORECASE
-        ))
+        print(f"Watching {channel}... Ctrl+C to stop.")
+        await client.run_until_disconnected()
 
-        has_sgd = bool(re.search(
-            r'(\d+\s*(?:SGD|S\$|\$)|(?:SGD|S\$|\$)\s*\d+|NTUC|PayNow)',
-            text, re.IGNORECASE
-        ))
-
-        if has_sgd and is_online:
-            amount = get_compensation_amount(text)
-            if amount and amount >= 100:
-                await client.send_message("me", f"🚨 HIGH PAY ALERT (SGD {amount:.0f}+)!\n\n{text}")
-            else:
-                await client.send_message("me", f"🔔 New paid survey!\n\n{text}")
-
-    print("Watching... Ctrl+C to stop.")
-    await client.run_until_disconnected()
+    except AuthKeyUnregisteredError:
+        print("Session expired. Please regenerate SESSION_STRING and update Railway.")
+        sys.exit(1)
+    finally:
+        await client.disconnect()
 
 asyncio.run(main())
