@@ -31,27 +31,42 @@ async def main():
         @client.on(events.NewMessage(chats=channel))
         async def handler(event):
             text = event.raw_text
-            is_online = bool(re.search(
-                r'Duration:.*,\s*(?:online|survey|zoom|video|prescreen|call)',
-                text, re.IGNORECASE
-            ))
+
             has_sgd = bool(re.search(
                 r'(\d+\s*(?:SGD|S\$|\$)|(?:SGD|S\$|\$)\s*\d+|NTUC|PayNow)',
                 text, re.IGNORECASE
             ))
-            if has_sgd and is_online:
-                amount = get_compensation_amount(text)
-                if amount and amount >= 100:
-                    await client.send_message("me", f"🚨 HIGH PAY ALERT (SGD {amount:.0f}+)!\n\n{text}")
-                else:
-                    await client.send_message("me", f"🔔 New paid survey!\n\n{text}")
+
+            # Exit early if no compensation mentioned at all
+            if not has_sgd:
+                return
+
+            is_online = bool(re.search(
+                r'Duration:.*(?:online|survey|zoom|video|prescreen|call)',
+                text, re.IGNORECASE
+            ))
+
+            amount = get_compensation_amount(text)
+
+            # High pay alert fires regardless of online/in-person
+            if amount and amount >= 100:
+                await client.send_message(
+                    "me",
+                    f"🚨 HIGH PAY ALERT (SGD {amount:.0f}+)!\n\n{text}"
+                )
+            # Low pay only notified if it's an online/remote format
+            elif is_online:
+                await client.send_message(
+                    "me",
+                    f"🔔 New paid survey!\n\n{text}"
+                )
 
         print(f"Watching {channel}... Ctrl+C to stop.")
         await client.run_until_disconnected()
 
     except AuthKeyUnregisteredError:
         print("Session expired. Regenerate SESSION_STRING.")
-        sys.exit(0)  # clean exit, Railway won't restart
+        sys.exit(0)
     finally:
         await client.disconnect()
 
